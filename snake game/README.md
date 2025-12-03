@@ -129,7 +129,7 @@ Open-Source contribution (GSoC path)
 | **v4.0** | Menu Screen Added                          |
 | **v5.0** | Background Image Support                   |
 | **v6.0** | Ghost Mode Power-up + Performance improved |
-| **Next** | Sound effects + Animation + More power-ups |
+| **v7.0** | Sound effects + Animation                  |           
 
 
  ---
