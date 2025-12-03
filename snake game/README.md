@@ -47,7 +47,7 @@ Snake-Game/
  ```bash
 git clone https://github.com/Sanchit122006/snake_game_v6.git
 cd snake-game-v6
-python snake_game_v6.py
+python snake_game_v7_with_sounds.py
 
 
  ```
