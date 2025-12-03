@@ -1,4 +1,4 @@
-
+# snake_game_v7_with_sounds.py
 import pygame
 import random
 import sys
@@ -30,24 +30,28 @@ GAME_STATE = "MENU"
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 image_folder = os.path.join(script_dir, "Images")
+sound_folder = os.path.join(script_dir, "Sounds")
 
+# ---------- IMAGES ----------
 background = pygame.image.load(os.path.join(image_folder, "bluesky.png"))
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 apple_img = pygame.image.load(os.path.join(image_folder, "apple.png"))
 berry_img = pygame.image.load(os.path.join(image_folder, "berry.png"))
 
-# Create golden fruit if image doesn't exist
+# golden fruit fallback (drawn) if image not present
 try:
     golden_img = pygame.image.load(os.path.join(image_folder, "golden_fruit.png"))
 except:
-    golden_img = pygame.Surface((GRID_SIZE, GRID_SIZE))
-    golden_img.fill((255, 215, 0))  # Gold color
+    golden_img = pygame.Surface((GRID_SIZE, GRID_SIZE), pygame.SRCALPHA)
+    golden_img.fill((255, 215, 0))
     pygame.draw.circle(golden_img, (255, 255, 0), (GRID_SIZE//2, GRID_SIZE//2), GRID_SIZE//3)
 
 apple_img = pygame.transform.scale(apple_img, (GRID_SIZE, GRID_SIZE))
 berry_img = pygame.transform.scale(berry_img, (GRID_SIZE, GRID_SIZE))
 golden_img = pygame.transform.scale(golden_img, (GRID_SIZE, GRID_SIZE))
+
+# ---------- COLORS & FONTS ----------
 snake_color = (0, 255, 0)
 snake_head_color = (0, 200, 0)
 text_color = (255, 255, 255)
@@ -61,6 +65,7 @@ large_font_size = max(64, min(96, HEIGHT // 8))
 font = pygame.font.SysFont(None, font_size)
 large_font = pygame.font.SysFont(None, large_font_size)
 
+# ---------- GAME STATE ----------
 snake_pos = [5 * GRID_SIZE, 3 * GRID_SIZE]
 snake_body = [[snake_pos[0], snake_pos[1]], [4 * GRID_SIZE, 3 * GRID_SIZE], [3 * GRID_SIZE, 3 * GRID_SIZE]]
 direction = "RIGHT"
@@ -76,6 +81,37 @@ golden_fruit_duration = 0
 ghost_mode_active = False
 ghost_mode_end_time = 0
 
+# ---------- SOUND FILES: update names here if you renamed files ----------
+# Use the exact filenames you have in the Sounds/ folder (case-sensitive).
+SOUND_FILES = {
+    "eat": "applecrunchedit.wav",         # normal fruit eat
+    "berry": "switch27.ogg",     # berry eat (bonus)
+    "gold": "audiomass-output.wav",       # golden fruit eaten
+    "menu": "switch3.ogg",       # menu select
+    "gameover": "rollover3.ogg"  # game over
+}
+
+# ---------- SOUND LOADING (robust) ----------
+pygame.mixer.init()
+def load_sound_safe(filename):
+    path = os.path.join(sound_folder, filename)
+    if os.path.exists(path):
+        try:
+            return pygame.mixer.Sound(path)
+        except Exception as e:
+            print("Warning: failed to load sound:", path, e)
+            return None
+    else:
+        print("Info: sound file not found:", path)
+        return None
+
+eat_sound = load_sound_safe(SOUND_FILES["eat"])
+berry_sound = load_sound_safe(SOUND_FILES["berry"])
+gold_sound = load_sound_safe(SOUND_FILES["gold"])
+menu_sound = load_sound_safe(SOUND_FILES["menu"])
+game_over_sound = load_sound_safe(SOUND_FILES["gameover"])
+
+# ---------- FUNCTIONS ----------
 def spawn_fruit():
     global fruit_pos, fruit_type
     while True:
@@ -199,6 +235,9 @@ def game_over_effect():
     screen.blit(flash, (0, 0))
     pygame.display.update()
     pygame.time.delay(200)
+    # play game over sound
+    if game_over_sound:
+        game_over_sound.play()
 
 def game_over():
     global GAME_STATE
@@ -217,15 +256,19 @@ def toggle_fullscreen():
     
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if not (screen.get_flags() & pygame.FULLSCREEN) else 0)
     background = pygame.transform.scale(background, (WIDTH, HEIGHT))
-    apple_img = pygame.transform.scale(apple_img, (GRID_SIZE, GRID_SIZE))
-    berry_img = pygame.transform.scale(berry_img, (GRID_SIZE, GRID_SIZE))
-    golden_img = pygame.transform.scale(golden_img, (GRID_SIZE, GRID_SIZE))
+    # scale images (safe)
+    try:
+        globals()['apple_img'] = pygame.transform.scale(apple_img, (GRID_SIZE, GRID_SIZE))
+        globals()['berry_img'] = pygame.transform.scale(berry_img, (GRID_SIZE, GRID_SIZE))
+        globals()['golden_img'] = pygame.transform.scale(golden_img, (GRID_SIZE, GRID_SIZE))
+    except:
+        pass
     
-    font_size = max(28, min(44, HEIGHT // 16))
-    large_font_size = max(64, min(96, HEIGHT // 8))
-    font = pygame.font.SysFont(None, font_size)
-    large_font = pygame.font.SysFont(None, large_font_size)
+    # recalc fonts
+    globals()['font'] = pygame.font.SysFont(None, max(28, min(44, HEIGHT // 16)))
+    globals()['large_font'] = pygame.font.SysFont(None, max(64, min(96, HEIGHT // 8)))
 
+# initialize first fruit
 reset_game()
 
 # --- MAIN LOOP ---
@@ -244,6 +287,8 @@ while True:
 
             if GAME_STATE == "MENU":
                 if event.key == pygame.K_RETURN:
+                    if menu_sound:
+                        menu_sound.play()
                     reset_game()
                     GAME_STATE = "PLAYING"
             elif GAME_STATE == "GAME_OVER":
@@ -275,7 +320,7 @@ while True:
         elif direction == "DOWN":
             snake_pos[1] += GRID_SIZE
 
-        # WRAP AROUND BOUNDARIES during ghost mode [web:30][web:31]
+        # WRAP AROUND BOUNDARIES during ghost mode
         if ghost_mode_active:
             wrap_around_boundaries()
         else:
@@ -288,13 +333,23 @@ while True:
 
         # Eat normal fruit
         if snake_pos == fruit_pos:
-            score += 1 if fruit_type == "apple" else 2
+            # play correct eat sound
+            if fruit_type == "apple":
+                if eat_sound:
+                    eat_sound.play()
+                score += 1
+            else:
+                if berry_sound:
+                    berry_sound.play()
+                score += 2
             spawn_fruit()
         else:
             snake_body.pop()
 
         # Eat golden fruit
         if golden_fruit_pos and snake_pos == golden_fruit_pos:
+            if gold_sound:
+                gold_sound.play()
             activate_ghost_mode()
             remove_golden_fruit()
 

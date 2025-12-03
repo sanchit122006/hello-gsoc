@@ -82,11 +82,12 @@ python snake_game_v6.py
 ![Gameplay Screenshot](gameplay.png)
 
 ### 💀 Game Over Screen
-![Game Over](game_over.png)
+![Game Over Screen showing final score and restart options](game_over.png)
+
 
  ---
 
- 
+
 
  🕹 Controls
 
